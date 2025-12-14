@@ -10,10 +10,12 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     public void register(RegisterRequest request) {
@@ -29,5 +31,20 @@ public class AuthService {
 
         // 4. Save to DB
         userRepository.save(user);
+    }
+    public AuthResponse login(LoginRequest request) {
+        // 1. Find user
+        User user = userRepository.findByUsername(request.username())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // 2. Validate Password
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            throw new RuntimeException("Invalid credentials");
+        }
+
+        // 3. Generate Token
+        String token = jwtService.generateToken(user.getUsername());
+
+        return new AuthResponse(token, user.getUsername());
     }
 }
