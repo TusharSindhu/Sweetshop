@@ -15,7 +15,9 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -61,5 +63,53 @@ public class SweetIntegrationTest {
                         .content(objectMapper.writeValueAsString(sweetReq)))
                 // 3. Assert: Expect 201 Created
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    void should_list_all_sweets_for_authenticated_user() throws Exception {
+        // 1. Arrange: Register/Login and Add 2 Sweets
+        // (Helper method to get token - reusing logic to keep test clean)
+        String jwtToken = registerAndLogin();
+
+        // Add Sweet 1 (Kaju Katli)
+        SweetRequest sweet1 = new SweetRequest("Kaju Katli", "Barfi", new BigDecimal("800.00"), 50);
+        mockMvc.perform(post("/api/sweets")
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sweet1)))
+                .andExpect(status().isCreated());
+
+        // Add Sweet 2 (Gulab Jamun)
+        SweetRequest sweet2 = new SweetRequest("Gulab Jamun", "Syrup", new BigDecimal("400.00"), 30);
+        mockMvc.perform(post("/api/sweets")
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sweet2)))
+                .andExpect(status().isCreated());
+
+        // 2. Act: GET /api/sweets
+        mockMvc.perform(get("/api/sweets")
+                        .header("Authorization", "Bearer " + jwtToken))
+                // 3. Assert
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].name").value("Kaju Katli"))
+                .andExpect(jsonPath("$[1].name").value("Gulab Jamun"));
+    }
+
+    // Helper method to reduce code duplication in tests
+    private String registerAndLogin() throws Exception {
+        RegisterRequest registerReq = new RegisterRequest("listUser", "pass123", "list@example.com");
+        mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(registerReq)));
+
+        LoginRequest loginReq = new LoginRequest("listUser", "pass123");
+        String response = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginReq)))
+                .andReturn().getResponse().getContentAsString();
+
+        return objectMapper.readValue(response, AuthResponse.class).jwtToken();
     }
 }
