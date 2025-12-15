@@ -112,4 +112,36 @@ public class SweetIntegrationTest {
 
         return objectMapper.readValue(response, AuthResponse.class).jwtToken();
     }
+
+    @Test
+    void should_decrease_quantity_when_sweet_is_purchased() throws Exception {
+        // 1. Arrange: Login and Add a Sweet with quantity 10
+        String jwtToken = registerAndLogin();
+
+        SweetRequest sweetReq = new SweetRequest("Rasmalai", "Bengali", new BigDecimal("50.00"), 10);
+
+        // We need the ID of the created sweet to buy it.
+        // We capture the response to extract the ID.
+        String sweetResponseJson = mockMvc.perform(post("/api/sweets")
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sweetReq)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        SweetResponse createdSweet = objectMapper.readValue(sweetResponseJson, SweetResponse.class);
+        Long sweetId = createdSweet.id();
+
+        // 2. Act: Purchase the sweet (POST /api/sweets/{id}/purchase)
+        mockMvc.perform(post("/api/sweets/" + sweetId + "/purchase")
+                        .header("Authorization", "Bearer " + jwtToken))
+                // 3. Assert: Expect 200 OK
+                .andExpect(status().isOk());
+
+        // 4. Verify: Fetch the sweet again and check if quantity is now 9
+        mockMvc.perform(get("/api/sweets")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(jsonPath("$[0].name").value("Rasmalai"))
+                .andExpect(jsonPath("$[0].quantity").value(9)); // <--- Crucial Check
+    }
 }
