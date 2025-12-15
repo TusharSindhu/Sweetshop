@@ -66,6 +66,13 @@ public class SweetController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> updateSweet(@PathVariable Long id, @RequestBody SweetRequest request) {
+        sweetService.updateSweet(id, request);
+        return ResponseEntity.ok().build();
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteSweet(@PathVariable Long id) {

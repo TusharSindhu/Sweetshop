@@ -17,6 +17,17 @@ A full-stack application for managing a sweet shop inventory, built with **Sprin
 * Node.js (v18+)
 * Docker & Docker Compose
 
+### Login Screen:
+![screenshots](screenshots/Loginpg.png)
+
+### Dashboard:
+![screenshots](screenshots/Dashboardpg.png)
+
+### Test Reports:
+![screenshots](screenshots/AuthTests.png)
+![screenshots](screenshots/TestSuite.png)
+
+
 ### 1. Start the Database
 Run the following command in the root directory to spin up PostgreSQL:
 ```bash
@@ -51,3 +62,6 @@ Tools Used: Gemini (Google)
 - TDD Workflow: I used Gemini to help generate the initial "Red" failing test cases based on the requirements, ensuring I followed the Red-Green-Refactor cycle strictly.
 
 - Frontend Styling: I used Gemini to generate the Tailwind CSS configuration for the specific "Orange/White" Indian Sweet Shop theme.
+
+### Reflection:
+Using AI significantly accelerated the "boring" parts of development (setup, config, CSS), allowing me to focus on the core business logic and TDD flow. It acted as a pair programmer, specifically helping to debug complex issues.

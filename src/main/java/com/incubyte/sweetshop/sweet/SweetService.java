@@ -57,4 +57,17 @@ public class SweetService {
         sweet.setQuantity(sweet.getQuantity() + amountToAdd);
         sweetRepository.save(sweet);
     }
+
+    public void updateSweet(Long id, SweetRequest request) {
+        Sweet sweet = sweetRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Sweet not found"));
+
+        sweet.setName(request.name());
+        sweet.setCategory(request.category());
+        sweet.setPrice(request.price());
+        // Quantity is handled by restock/purchase, but admin can override here if needed
+        sweet.setQuantity(request.quantity());
+
+        sweetRepository.save(sweet);
+    }
 }

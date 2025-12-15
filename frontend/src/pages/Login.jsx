@@ -21,6 +21,7 @@ export default function Login() {
       const token = response.data.jwtToken;
       localStorage.setItem('token', token);
       localStorage.setItem('username', response.data.username);
+      localStorage.setItem('role', response.data.role);
 
       // Redirect to home/dashboard
       navigate('/');
@@ -67,6 +68,9 @@ export default function Login() {
             Sign In
           </button>
         </form>
+        <p className="mt-4 text-center text-sm">
+        Don't have an account? <Link to="/register" className="text-brand-600 font-bold">Register here</Link>
+        </p>
       </div>
     </div>
   );
