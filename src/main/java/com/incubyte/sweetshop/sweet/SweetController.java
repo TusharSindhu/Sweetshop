@@ -26,7 +26,7 @@ public class SweetController {
                 savedSweet.getPrice(),
                 savedSweet.getQuantity()
         );
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping
@@ -45,5 +45,11 @@ public class SweetController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/purchase")
+    public ResponseEntity<Void> purchaseSweet(@PathVariable Long id) {
+        sweetService.purchaseSweet(id);
+        return ResponseEntity.ok().build();
     }
 }
