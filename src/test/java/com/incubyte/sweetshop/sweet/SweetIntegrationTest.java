@@ -15,8 +15,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -33,6 +32,9 @@ public class SweetIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private com.incubyte.sweetshop.user.UserRepository userRepository; // Add this
 
     @Test
     void should_allow_authenticated_user_to_add_sweet() throws Exception {
@@ -172,5 +174,68 @@ public class SweetIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].name").value("Kaju Katli"));
+    }
+
+    @Test
+    void should_allow_only_admin_to_delete_sweet() throws Exception {
+        // 1. Arrange: Create a Sweet as a normal user
+        String userToken = registerAndLogin("normalUser", "pass", "user@test.com");
+
+        // Add a sweet (assuming normal users can add for now, or use a helper to seed DB)
+        // Note: For this test, we'll just seed the sweet directly or use the user token if allowed
+        SweetRequest sweetReq = new SweetRequest("Old Sweet", "Stale", new BigDecimal("10.00"), 5);
+        String response = mockMvc.perform(post("/api/sweets")
+                        .header("Authorization", "Bearer " + userToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sweetReq)))
+                .andReturn().getResponse().getContentAsString();
+
+        Long sweetId = objectMapper.readValue(response, SweetResponse.class).id();
+
+        // 2. Act & Assert: Normal User tries to DELETE -> 403 Forbidden
+        mockMvc.perform(delete("/api/sweets/" + sweetId)
+                        .header("Authorization", "Bearer " + userToken))
+                .andExpect(status().isForbidden());
+
+        // 3. Arrange: Create an Admin User
+        // Register first
+        RegisterRequest adminReq = new RegisterRequest("adminUser", "adminPass", "admin@test.com");
+        mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(adminReq)));
+
+        // MANUALLY Promote to Admin in DB
+        com.incubyte.sweetshop.user.User adminUser = userRepository.findByUsername("adminUser").get();
+        adminUser.setRole("ROLE_ADMIN");
+        userRepository.save(adminUser);
+
+        // Login as Admin
+        LoginRequest loginReq = new LoginRequest("adminUser", "adminPass");
+        String adminToken = objectMapper.readValue(
+                mockMvc.perform(post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(loginReq)))
+                        .andReturn().getResponse().getContentAsString(),
+                AuthResponse.class).jwtToken();
+
+        // 4. Act & Assert: Admin tries to DELETE -> 204 No Content
+        mockMvc.perform(delete("/api/sweets/" + sweetId)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isNoContent());
+    }
+
+    // Helper update (if you don't have this version yet)
+    private String registerAndLogin(String username, String pass, String email) throws Exception {
+        RegisterRequest registerReq = new RegisterRequest(username, pass, email);
+        mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(registerReq)));
+
+        LoginRequest loginReq = new LoginRequest(username, pass);
+        String response = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginReq)))
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readValue(response, AuthResponse.class).jwtToken();
     }
 }
