@@ -224,7 +224,7 @@ public class SweetIntegrationTest {
                 .andExpect(status().isNoContent());
     }
 
-    // Helper update (if you don't have this version yet)
+    // Helper update
     private String registerAndLogin(String username, String pass, String email) throws Exception {
         RegisterRequest registerReq = new RegisterRequest(username, pass, email);
         mockMvc.perform(post("/api/auth/register")
@@ -237,5 +237,51 @@ public class SweetIntegrationTest {
                         .content(objectMapper.writeValueAsString(loginReq)))
                 .andReturn().getResponse().getContentAsString();
         return objectMapper.readValue(response, AuthResponse.class).jwtToken();
+    }
+
+    @Test
+    void should_allow_only_admin_to_restock_sweet() throws Exception {
+        // 1. Arrange: Create Sweet with low stock (5)
+        // We need a helper to register/login as Admin quickly
+        String adminToken = registerAndLogin("restockAdmin", "pass", "admin@stock.com");
+
+        // Promote to Admin
+        com.incubyte.sweetshop.user.User adminUser = userRepository.findByUsername("restockAdmin").get();
+        adminUser.setRole("ROLE_ADMIN");
+        userRepository.save(adminUser);
+
+        // Re-login to get updated token with ROLE_ADMIN
+        LoginRequest loginReq = new LoginRequest("restockAdmin", "pass");
+        adminToken = objectMapper.readValue(
+                mockMvc.perform(post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(loginReq)))
+                        .andReturn().getResponse().getContentAsString(),
+                AuthResponse.class).jwtToken();
+
+        // Create the sweet
+        SweetRequest sweetReq = new SweetRequest("Empty Ladoo", "Ladoo", new BigDecimal("10.00"), 5);
+        String response = mockMvc.perform(post("/api/sweets")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sweetReq)))
+                .andReturn().getResponse().getContentAsString();
+        Long sweetId = objectMapper.readValue(response, SweetResponse.class).id();
+
+        // 2. Act: Admin adds 20 items
+        // We'll send a simple Map or JSON for the quantity to add
+        String restockBody = "{\"quantity\": 20}";
+
+        mockMvc.perform(post("/api/sweets/" + sweetId + "/restock")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(restockBody))
+                .andExpect(status().isOk());
+
+        // 3. Assert: Check new quantity (5 + 20 = 25)
+        mockMvc.perform(get("/api/sweets")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(jsonPath("$[0].name").value("Empty Ladoo"))
+                .andExpect(jsonPath("$[0].quantity").value(25));
     }
 }
