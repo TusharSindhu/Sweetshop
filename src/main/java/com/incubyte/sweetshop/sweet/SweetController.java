@@ -52,4 +52,16 @@ public class SweetController {
         sweetService.purchaseSweet(id);
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<SweetResponse>> searchSweets(@RequestParam(required = false) String name) {
+        List<Sweet> sweets = sweetService.searchSweets(name);
+
+        List<SweetResponse> response = sweets.stream()
+                .map(sweet -> new SweetResponse(
+                        sweet.getId(), sweet.getName(), sweet.getCategory(), sweet.getPrice(), sweet.getQuantity()))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(response);
+    }
 }

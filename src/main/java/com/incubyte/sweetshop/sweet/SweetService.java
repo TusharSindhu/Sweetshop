@@ -31,4 +31,11 @@ public class SweetService {
         sweet.setQuantity(sweet.getQuantity() - 1);
         sweetRepository.save(sweet);
     }
+
+    public List<Sweet> searchSweets(String name) {
+        if (name != null && !name.isBlank()) {
+            return sweetRepository.findByNameContainingIgnoreCase(name);
+        }
+        return sweetRepository.findAll();
+    }
 }
