@@ -38,4 +38,11 @@ public class SweetService {
         }
         return sweetRepository.findAll();
     }
+
+    public void deleteSweet(Long id) {
+        if (!sweetRepository.existsById(id)) {
+            throw new RuntimeException("Sweet not found");
+        }
+        sweetRepository.deleteById(id);
+    }
 }

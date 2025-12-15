@@ -2,6 +2,7 @@ package com.incubyte.sweetshop.sweet;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -63,5 +64,12 @@ public class SweetController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteSweet(@PathVariable Long id) {
+        sweetService.deleteSweet(id);
+        return ResponseEntity.noContent().build();
     }
 }
