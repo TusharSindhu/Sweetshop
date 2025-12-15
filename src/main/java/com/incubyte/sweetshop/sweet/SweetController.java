@@ -72,4 +72,11 @@ public class SweetController {
         sweetService.deleteSweet(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/restock")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> restockSweet(@PathVariable Long id, @RequestBody RestockRequest request) {
+        sweetService.restockSweet(id, request.quantity());
+        return ResponseEntity.ok().build();
+    }
 }
