@@ -144,4 +144,33 @@ public class SweetIntegrationTest {
                 .andExpect(jsonPath("$[0].name").value("Rasmalai"))
                 .andExpect(jsonPath("$[0].quantity").value(9)); // <--- Crucial Check
     }
+
+    @Test
+    void should_search_sweets_by_name() throws Exception {
+        // 1. Arrange: Add two different sweets
+        String jwtToken = registerAndLogin();
+
+        // Add Kaju Katli
+        mockMvc.perform(post("/api/sweets")
+                .header("Authorization", "Bearer " + jwtToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(
+                        new SweetRequest("Kaju Katli", "Barfi", new BigDecimal("800.00"), 50))));
+
+        // Add Gulab Jamun
+        mockMvc.perform(post("/api/sweets")
+                .header("Authorization", "Bearer " + jwtToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(
+                        new SweetRequest("Gulab Jamun", "Syrup", new BigDecimal("400.00"), 30))));
+
+        // 2. Act: Search for "Kaju"
+        mockMvc.perform(get("/api/sweets/search")
+                        .param("name", "Kaju") // Query Parameter
+                        .header("Authorization", "Bearer " + jwtToken))
+                // 3. Assert: Should find 1, but NOT 2
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("Kaju Katli"));
+    }
 }
