@@ -20,7 +20,9 @@ public class AuthService {
 
     public void register(RegisterRequest request) {
         // 1. Check if user exists (Skipping for now to keep it simple "Green", will refactor later)
-
+        if (userRepository.findByUsername(request.username()).isPresent()) {
+            throw new RuntimeException("Username already exists");
+        }
         // 2. Create User Entity
         User user = new User();
         user.setUsername(request.username());

@@ -18,7 +18,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             
             {/* The Login page is separate */}
-            {<Route path="/login" element={<Login />} />}
+            <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
           </Routes>
         </div>
