@@ -5,19 +5,23 @@ import { Link } from 'react-router-dom';
 
 export default function Dashboard() {
   const [sweets, setSweets] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   
-  // Admin Form State
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newSweet, setNewSweet] = useState({ name: '', category: '', price: '', quantity: '' });
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
 
-  // FIX: Use useCallback to create a stable function accessible everywhere
-  const fetchSweets = useCallback(async (query = '') => {
+  // Admin Form State
+  const [showForm, setShowForm] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [formData, setFormData] = useState({ id: null, name: '', category: '', price: '', quantity: '' });
+
+  // 1. UPDATED: Fetch Data from Backend with Filters
+  const fetchSweets = useCallback(async () => {
     const token = localStorage.getItem('token');
-    
     if (!token) {
       setError('Please login to view sweets');
       setLoading(false);
@@ -25,10 +29,14 @@ export default function Dashboard() {
     }
 
     try {
-      // Decide URL based on whether we are searching or listing all
-      const url = query 
-        ? `http://localhost:8080/api/sweets/search?name=${query}` 
-        : 'http://localhost:8080/api/sweets';
+      // Create URL parameters
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('name', searchQuery);
+      if (selectedCategory) params.append('category', selectedCategory);
+      if (maxPrice) params.append('maxPrice', maxPrice);
+
+      // It always hits the /search endpoint now, which handles empty params gracefully
+      const url = `http://localhost:8080/api/sweets/search?${params.toString()}`;
       
       const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
@@ -36,12 +44,12 @@ export default function Dashboard() {
       setSweets(response.data);
       setError('');
     } catch (err) {
-      console.error(err);
+      console.log(err);
       setError('Failed to load sweets. You might need to login again.');
     } finally {
       setLoading(false);
     }
-  }, []); // Empty dependency array means this function never changes
+  }, [searchQuery, selectedCategory, maxPrice]); // Re-run if these change
 
   // Initial Load & Admin Check
   useEffect(() => {
@@ -50,141 +58,182 @@ export default function Dashboard() {
     setIsAdmin(role === 'ROLE_ADMIN');
   }, [fetchSweets]);
 
-  const handleSearch = (e) => {
+  // Handle "Go" button for Name search
+  const handleSearchSubmit = (e) => {
     e.preventDefault();
-    fetchSweets(searchQuery);
+    fetchSweets();
   };
 
+  // --- Admin Logic (Same as before) ---
   const handlePurchase = async (id) => {
     const token = localStorage.getItem('token');
     try {
       await axios.post(`http://localhost:8080/api/sweets/${id}/purchase`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      fetchSweets(searchQuery); // Refresh list
-      alert("Purchase Successful! 🍬");
+      fetchSweets();
+      alert("Purchased! 🍬");
     } catch (err) {
-      console.error(err);
-      alert("Failed to purchase. Try again.");
+      console.log(err);
+      alert("Purchase Failed");
     }
   };
 
   const handleDelete = async (id) => {
-    if(!window.confirm("Are you sure you want to delete this sweet?")) return;
+    if(!window.confirm("Delete this sweet?")) return;
     const token = localStorage.getItem('token');
     try {
       await axios.delete(`http://localhost:8080/api/sweets/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      fetchSweets(searchQuery);
+      fetchSweets();
     } catch (err) {
-      console.error(err);
-      alert("Only Admins can delete sweets!");
+      console.log(err);
+      alert("Delete failed");
     }
   };
 
-  const handleAddSweet = async (e) => {
+  const handleRestock = async (id) => {
+    const qty = window.prompt("Enter quantity to add to stock:");
+    if (!qty || isNaN(qty) || qty <= 0) return;
+
+    const token = localStorage.getItem('token');
+    try {
+      await axios.post(`http://localhost:8080/api/sweets/${id}/restock`, { quantity: parseInt(qty) }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchSweets();
+      alert("Stock updated!");
+    } catch (err) {
+      console.log(err);
+      alert("Restock failed");
+    }
+  };
+
+  const openAddForm = () => {
+    setFormData({ id: null, name: '', category: '', price: '', quantity: '' });
+    setIsEditMode(false);
+    setShowForm(true);
+  };
+
+  const openEditForm = (sweet) => {
+    setFormData({ ...sweet });
+    setIsEditMode(true);
+    setShowForm(true);
+    window.scrollTo(0, 0);
+  };
+
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
     try {
-      await axios.post('http://localhost:8080/api/sweets', newSweet, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setShowAddForm(false);
-      setNewSweet({ name: '', category: '', price: '', quantity: '' });
-      fetchSweets(); // Refresh list
-      alert("Sweet Added!");
+      if (isEditMode) {
+        await axios.put(`http://localhost:8080/api/sweets/${formData.id}`, formData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        alert("Sweet Updated!");
+      } else {
+        await axios.post('http://localhost:8080/api/sweets', formData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        alert("Sweet Added!");
+      }
+      setShowForm(false);
+      fetchSweets();
     } catch (err) {
-      console.error(err);
-      alert("Failed to add sweet");
+      console.log(err);
+      alert("Operation failed");
     }
   };
 
   if (loading) return <div className="text-center mt-10">Loading tasty sweets...</div>;
-
-  if (error) return (
-    <div className="text-center mt-10">
-      <p className="text-red-600 mb-4">{error}</p>
-      <Link to="/login" className="text-brand-600 underline">Go to Login</Link>
-    </div>
-  );
+  if (error) return <div className="text-center mt-10 text-red-600">{error}</div>;
 
   return (
     <div>
-      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+      {/* Top Controls */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 bg-white p-4 rounded shadow-sm border border-brand-100">
         <h2 className="text-3xl font-bold text-brand-900">Dashboard</h2>
         
-        <div className="flex gap-2">
-          {/* Search Bar */}
-          <form onSubmit={handleSearch} className="flex space-x-2">
+        <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+          {/* Search Inputs */}
+          <form onSubmit={handleSearchSubmit} className="flex gap-2">
             <input 
-              type="text" placeholder="Search sweets..." 
-              className="px-3 py-2 border rounded border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              type="text" placeholder="Search Name..." 
+              className="px-3 py-2 border rounded text-sm w-full"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            <button type="submit" className="bg-brand-500 text-white px-4 py-2 rounded hover:bg-brand-600 font-medium">
-              Search
-            </button>
+            <button type="submit" className="bg-brand-500 text-white px-3 py-2 rounded text-sm font-bold">Go</button>
           </form>
 
-          {/* Admin Add Button */}
+          {/* Filters (Trigger fetchSweets automatically via useEffect) */}
+          <input 
+            type="text" placeholder="Filter Category" 
+            className="px-3 py-2 border rounded text-sm"
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+          />
+          <input 
+            type="number" placeholder="Max Price" 
+            className="px-3 py-2 border rounded text-sm w-24"
+            value={maxPrice}
+            onChange={(e) => setMaxPrice(e.target.value)}
+          />
+
+          {/* Admin Toggle */}
           {isAdmin && (
             <button 
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-bold"
+              onClick={showForm ? () => setShowForm(false) : openAddForm}
+              className={`px-4 py-2 rounded font-bold text-white whitespace-nowrap ${showForm ? 'bg-gray-500' : 'bg-green-600 hover:bg-green-700'}`}
             >
-              {showAddForm ? 'Close' : '+ Add'}
+              {showForm ? 'Close Form' : '+ Add Sweet'}
             </button>
           )}
         </div>
       </div>
 
-      {/* Admin Add Form */}
-      {showAddForm && (
-        <div className="bg-white p-6 rounded shadow-md mb-8 border border-brand-200">
-          <h3 className="font-bold mb-4 text-brand-900">Add New Sweet</h3>
-          <form onSubmit={handleAddSweet} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Admin Form */}
+      {showForm && (
+        <div className="bg-brand-50 p-6 rounded shadow-md mb-8 border border-brand-200">
+          <h3 className="font-bold mb-4 text-brand-900 text-xl">{isEditMode ? 'Edit Sweet' : 'Add New Sweet'}</h3>
+          <form onSubmit={handleFormSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input placeholder="Name" className="border p-2 rounded" required
-              value={newSweet.name}
-              onChange={e => setNewSweet({...newSweet, name: e.target.value})} />
+              value={formData.name}
+              onChange={e => setFormData({...formData, name: e.target.value})} />
             <input placeholder="Category" className="border p-2 rounded" required
-              value={newSweet.category}
-              onChange={e => setNewSweet({...newSweet, category: e.target.value})} />
+              value={formData.category}
+              onChange={e => setFormData({...formData, category: e.target.value})} />
             <input type="number" placeholder="Price" className="border p-2 rounded" required
-              value={newSweet.price}
-              onChange={e => setNewSweet({...newSweet, price: e.target.value})} />
+              value={formData.price}
+              onChange={e => setFormData({...formData, price: e.target.value})} />
             <input type="number" placeholder="Quantity" className="border p-2 rounded" required
-              value={newSweet.quantity}
-              onChange={e => setNewSweet({...newSweet, quantity: e.target.value})} />
+              value={formData.quantity}
+              onChange={e => setFormData({...formData, quantity: e.target.value})} />
             <button type="submit" className="md:col-span-2 bg-brand-600 text-white py-2 rounded hover:bg-brand-700 font-bold">
-              Save Sweet
+              {isEditMode ? 'Update Sweet' : 'Save Sweet'}
             </button>
           </form>
         </div>
       )}
 
-      {/* Sweet Grid */}
+      {/* Results Grid */}
       {sweets.length === 0 ? (
         <div className="text-center py-10">
-          <p className="text-gray-500 text-lg">No sweets found. {isAdmin ? "Add some!" : "Come back later!"}</p>
+          <p className="text-gray-500 text-lg">No sweets found.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sweets.map(sweet => (
-            <div key={sweet.id} className="relative group">
-              <SweetCard sweet={sweet} onPurchase={handlePurchase} />
-              
-              {/* Admin Delete Button (Only visible to Admin) */}
-              {isAdmin && (
-                <button 
-                  onClick={() => handleDelete(sweet.id)}
-                  className="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded shadow opacity-90 hover:opacity-100 hover:scale-105 transition"
-                >
-                  Delete
-                </button>
-              )}
-            </div>
+            <SweetCard 
+              key={sweet.id} 
+              sweet={sweet} 
+              isAdmin={isAdmin}
+              onPurchase={handlePurchase}
+              onEdit={openEditForm}
+              onRestock={handleRestock}
+              onDelete={handleDelete}
+            />
           ))}
         </div>
       )}

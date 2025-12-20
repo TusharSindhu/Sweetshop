@@ -1,16 +1,16 @@
 # Sweetshop
 
-# 🍬 Mithai Wala - Sweet Shop Management System
+# Mithai Wala - Sweet Shop Management System
 
-A full-stack application for managing a sweet shop inventory, built with **Spring Boot** (Backend) and **React** (Frontend).
+A full-stack application for managing a sweet shop inventory, built with **Spring Boot** (Backend) and **React** (Frontend). Implementing Role Based Acess Control and following RED-GREEN-REFACTOR Test Driven Development.
 
-## 🚀 Tech Stack
+## Tech Stack
 * **Backend:** Java 17+, Spring Boot 3, Spring Security (JWT), Spring Data JPA
 * **Database:** PostgreSQL (Dockerized)
 * **Frontend:** React, Vite, Tailwind CSS
 * **Testing:** JUnit 5, MockMvc, Testcontainers
 
-## 🛠️ Setup Instructions
+## Setup Instructions
 
 ### Prerequisites
 * Java 17+ and Maven
@@ -20,8 +20,8 @@ A full-stack application for managing a sweet shop inventory, built with **Sprin
 ### Login Screen:
 ![screenshots](screenshots/Loginpg.png)
 
-### Dashboard:
-![screenshots](screenshots/Dashboardpg.png)
+### Dashboard
+![screenshots](screenshots/Dashboardpg.png?)
 
 ### Test Reports:
 ![screenshots](screenshots/AuthTests.png)
@@ -51,6 +51,11 @@ npm run dev
 To run the TDD test suite (Integration Tests with Testcontainers/Docker):
 ```bash
 ./mvnw test
+```
+
+### Promoting a User(halwai_admin) to Admin:
+```bash
+docker exec -it sweetshop-db psql -U postgres -d sweetshop -c "UPDATE users SET role = 'ROLE_ADMIN' WHERE username = 'halwai_admin';"
 ```
 
 ### My AI Usage:

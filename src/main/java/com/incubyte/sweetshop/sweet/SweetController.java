@@ -4,6 +4,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -55,8 +57,12 @@ public class SweetController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<SweetResponse>> searchSweets(@RequestParam(required = false) String name) {
-        List<Sweet> sweets = sweetService.searchSweets(name);
+    public ResponseEntity<List<SweetResponse>> searchSweets(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) BigDecimal maxPrice
+    ) {
+        List<Sweet> sweets = sweetService.searchSweets(name, category, maxPrice);
 
         List<SweetResponse> response = sweets.stream()
                 .map(sweet -> new SweetResponse(
